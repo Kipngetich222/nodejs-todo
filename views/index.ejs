@@ -1,38 +1,149 @@
+<!DOCTYPE html>
 <html>
-<head> 
-    <title> ToDo App </title>
+<head>
+    <title>ToDo App</title>
     <link href="https://fonts.googleapis.com/css?family=Lato:100" rel="stylesheet">
     <link href="/styles.css" rel="stylesheet">
-</head>
+    <style>
+        /* Your custom CSS styles can go here */
+        .alert {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #f44336;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            display: none;
+            z-index: 1000;
+        }
 
+        .notification {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #ffcc00; /* Yellow background color */
+            color: #333; /* Black text color */
+            padding: 10px 20px;
+            border-radius: 5px;
+            display: none; /* Initially hidden */
+            z-index: 999; /* Ensure it appears on top of other content */
+        }
+    </style>
+</head>
 <body>
     <div class="container">
-        <h2> ToDo App </h2>
+        <div class="notification"></div>
+        <h2>ToDo App</h2>
 
-        <form action="/addtask" method="POST">
-            <input type="text" name="newtask" placeholder="Add new task">
-            <button> Add Task </button>
+        <div class="alert" id="taskAlert"></div>
+
+        <form id="addTaskForm" action="/addtask" method="POST">
+            <input type="text" id="newTaskInput" name="newtask" placeholder="Add new task" required>
+            <input type="datetime-local" id="startTime" name="starttime" placeholder="Starting Time" required>
+            <input type="datetime-local" id="endTime" name="endtime" placeholder="Ending Time" required>
+            <button type="submit">Add Task</button>
         </form>
 
-        <h2> Saved Task </h2>
+        <h2>Saved Task</h2>
+        <ul id="taskList">
+            <% for (var i = 0; i < incompleteTasks.length; i++) { %>
+                <li>
+                    <input type="checkbox" class="taskCheckbox" name="check" value="<%= incompleteTasks[i].name %>" data-start-time="<%= incompleteTasks[i].startTime.toISOString() %>" />
+                    <%= incompleteTasks[i].name %> (Start: <%= formatTime(incompleteTasks[i].startTime) %>, End: <%= formatTime(incompleteTasks[i].endTime) %>)
+                    <span class="countdown-timer"></span>
+                </li>
+            <% } %>
+        </ul>
+        <form action="/clearcompleted" method="POST">
+            <% for (var i = 0; i < incompleteTasks.length; i++) { %>
+                <input type="checkbox" name="check" value="<%= incompleteTasks[i].name %>" style="display: none;" />
+            <% } %>
+            <button type="submit" id="clearCompletedBtn">Clear Completed</button>
+        </form>
+
+        <h2>Completed</h2>
+        <ul id="completedList">
+            <% for (var i = 0; i < completedTasks.length; i++) { %>
+                <li>
+                    <input type="checkbox" class="completedCheckbox" name="check" value="<%= completedTasks[i].name %>" />
+                    <%= completedTasks[i].name %> (Start: <%= formatTime(completedTasks[i].startTime) %>, End: <%= formatTime(completedTasks[i].endTime) %>)
+                </li>
+            <% } %>
+        </ul>
         <form action="/removetask" method="POST">
-            <% for (var i = 0; i < task.length; i++) { %>
-                <li>
-                    <input type="checkbox" name="check" value="<%= task[i] %>" /> <%= task[i] %>
-                </li>
+            <% for (var i = 0; i < completedTasks.length; i++) { %>
+                <input type="checkbox" name="check" value="<%= completedTasks[i].name %>" style="display: none;" />
             <% } %>
-            <button type="submit" id="top"> Clear Completed </button>
-        </form>
-
-        <h2> Completed </h2>
-        <form action="/deletecomplete" method="POST">
-            <% for (var i = 0; i < complete.length; i++) { %>
-                <li>
-                    <input type="checkbox" name="deleteCheck" value="<%= i %>" /> <%= complete[i] %>
-                </li>
-            <% } %>
-            <button type="submit"> Delete Selected </button>
+            <button type="submit" id="deleteSelectedBtn">Delete Selected</button>
         </form>
     </div>
+
+    <!-- Include Socket.IO library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.3.1/socket.io.min.js"></script>
+    <script>
+        // Define formatTime function
+        function formatTime(time) {
+            const date = new Date(time);
+            const hours = date.getHours().toString().padStart(2, '0');
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            return `${hours}:${minutes}`;
+        }
+
+        const socket = io(); // Initialize Socket.IO
+
+        // Your client-side JavaScript code goes here
+        const tasks = document.querySelectorAll(".taskCheckbox");
+
+        tasks.forEach(task => {
+            const startTime = new Date(task.getAttribute("data-start-time")).getTime();
+            const timerElement = task.nextElementSibling.querySelector(".countdown-timer");
+
+            const updateTimer = () => {
+                const now = new Date().getTime();
+                const distance = startTime - now;
+
+                // Check if timerElement is not null
+                if (timerElement) {
+                    const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                    const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+                    timerElement.textContent = `Due in ${minutes}m ${seconds}s`;
+
+                    if (distance <= 60000) { // Display notification when 1 minute remaining
+                        const taskName = task.value;
+                        const notificationDiv = document.querySelector('.notification');
+
+                        // Set notification content and styling
+                        notificationDiv.textContent = `Task '${taskName}' is starting soon`;
+                        notificationDiv.style.display = 'block';
+
+                        // Hide notification after a delay
+                        setTimeout(() => {
+                            notificationDiv.style.display = 'none';
+                        }, 5000); // Adjust the delay as needed (5000 milliseconds = 5 seconds)
+                    }
+
+                    if (distance <= 0) {
+                        clearInterval(timerInterval);
+                        timerElement.textContent = "Due";
+                    }
+                }
+            };
+
+            updateTimer();
+            const timerInterval = setInterval(updateTimer, 1000);
+        });
+
+        socket.on("dueTask", task => {
+            // Display real-time notification for due task
+            const notificationDiv = document.createElement("div");
+            notificationDiv.textContent = `Task '${task}' is due now`;
+            document.getElementById("taskAlert").appendChild(notificationDiv);
+            notificationDiv.classList.add("alert");
+        });
+    </script>
 </body>
 </html>
