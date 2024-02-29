@@ -1,35 +1,32 @@
-//dependencies required for the app
-var express = require("express");
-var bodyParser = require("body-parser");
-var app = express();
+// Dependencies required for the app
+const express = require("express");
+const bodyParser = require("body-parser");
+const app = express();
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.set("view engine", "ejs");
-//render css files
 app.use(express.static("public"));
 
-//placeholders for added task
-var task = ["buy socks", "practise with nodejs"];
-//placeholders for removed task
-var complete = ["finish jquery"];
+// Placeholders for added task
+let task = ["buy socks", "practise with nodejs"];
+// Placeholders for removed task
+let complete = ["finish jquery"];
 
-//post route for adding new task 
-app.post("/addtask", function(req, res) {
-    var newTask = req.body.newtask;
-    //add the new task from the post route
+// Post route for adding new task
+app.post("/addtask", (req, res) => {
+    const newTask = req.body.newtask;
     task.push(newTask);
     res.redirect("/");
 });
 
-app.post("/removetask", function(req, res) {
-    var completeTask = req.body.check;
-    //check for the "typeof" the different completed task, then add into the complete task
+// Post route for removing completed task
+app.post("/removetask", (req, res) => {
+    const completeTask = req.body.check;
     if (typeof completeTask === "string") {
         complete.push(completeTask);
-        //check if the completed task already exits in the task when checked, then remove it
         task.splice(task.indexOf(completeTask), 1);
     } else if (typeof completeTask === "object") {
-        for (var i = 0; i < completeTask.length; i++) {
+        for (let i = 0; i < completeTask.length; i++) {
             complete.push(completeTask[i]);
             task.splice(task.indexOf(completeTask[i]), 1);
         }
@@ -37,12 +34,25 @@ app.post("/removetask", function(req, res) {
     res.redirect("/");
 });
 
-//render the ejs and display added task, completed task
-app.get("/", function(req, res) {
+// Post route for deleting selected completed tasks
+app.post("/deletecomplete", (req, res) => {
+    const deleteIndexes = req.body.deleteCheck;
+    if (typeof deleteIndexes === "string") {
+        complete.splice(deleteIndexes, 1);
+    } else if (Array.isArray(deleteIndexes)) {
+        deleteIndexes.forEach(index => {
+            complete.splice(index, 1);
+        });
+    }
+    res.redirect("/");
+});
+
+// Render the ejs and display added task, completed task
+app.get("/", (req, res) => {
     res.render("index", { task: task, complete: complete });
 });
 
-//set app to listen on port 3000
-app.listen(3000, function() {
-    console.log("server is running on port 3000");
+// Set app to listen on port 3000
+app.listen(3000, () => {
+    console.log("Server is running on port 3000");
 });
