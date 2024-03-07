@@ -58,8 +58,8 @@
             <% } %>
         </ul>
         <form action="/clearcompleted" method="POST">
-            <% for (var i = 0; i < incompleteTasks.length; i++) { %>
-                <input type="checkbox" name="check" value="<%= incompleteTasks[i].name %>" style="display: none;" />
+            <% for (var i = 0; i < completedTasks.length; i++) { %>
+                <input type="checkbox" name="checkedTasks" value="<%= completedTasks[i].name %>" />
             <% } %>
             <button type="submit" id="clearCompletedBtn">Clear Completed</button>
         </form>
@@ -73,9 +73,9 @@
                 </li>
             <% } %>
         </ul>
-        <form action="/removetask" method="POST">
+        <form action="/deleteselected" method="POST">
             <% for (var i = 0; i < completedTasks.length; i++) { %>
-                <input type="checkbox" name="check" value="<%= completedTasks[i].name %>" style="display: none;" />
+                <input type="checkbox" name="checkedTasks" value="<%= completedTasks[i].name %>" style="display: none;" />
             <% } %>
             <button type="submit" id="deleteSelectedBtn">Delete Selected</button>
         </form>
@@ -143,6 +143,25 @@
             notificationDiv.textContent = `Task '${task}' is due now`;
             document.getElementById("taskAlert").appendChild(notificationDiv);
             notificationDiv.classList.add("alert");
+        });
+
+        // Additional scripts for handling Clear Completed and Delete Selected
+        document.getElementById('clearCompletedBtn').addEventListener('click', function() {
+            const checkedTasks = Array.from(document.querySelectorAll('.completedCheckbox:checked')).map(checkbox => checkbox.value);
+            fetch('/clearcompleted', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({checkedTasks}),
+            }).then(() => window.location.reload());
+        });
+
+        document.getElementById('deleteSelectedBtn').addEventListener('click', function() {
+            const checkedTasks = Array.from(document.querySelectorAll('.taskCheckbox:checked')).map(checkbox => checkbox.value);
+            fetch('/deleteselected', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({checkedTasks}),
+            }).then(() => window.location.reload());
         });
     </script>
 </body>

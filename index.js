@@ -7,18 +7,6 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
-// Define formatTime function
-function formatTime(time) {
-    const date = new Date(time);
-    const hours = date.getHours().toString().padStart(2, '0');
-    const minutes = date.getMinutes().toString().padStart(2, '0');
-    return `${hours}:${minutes}`;
-}
-
-app.use(bodyParser.urlencoded({ extended: true }));
-app.set("view engine", "ejs");
-app.use(express.static("public"));
-
 // Placeholder for added tasks
 let tasks = [];
 
@@ -31,6 +19,11 @@ io.on("connection", socket => {
         console.log("A client disconnected");
     });
 });
+
+// Middleware
+app.use(bodyParser.urlencoded({ extended: true }));
+app.set("view engine", "ejs");
+app.use(express.static("public"));
 
 // Post route for adding new task
 app.post("/addtask", (req, res) => {
@@ -64,18 +57,15 @@ app.post("/addtask", (req, res) => {
 
 // Post route for clearing completed tasks
 app.post("/clearcompleted", (req, res) => {
-    tasks = tasks.filter(task => !task.due);
+    const checkedTasks = req.body.checkedTasks;
+    tasks = tasks.filter(task => !checkedTasks.includes(task.name));
     res.redirect("/");
 });
 
 // Post route for removing selected tasks
 app.post("/deleteselected", (req, res) => {
-    const selectedTasks = req.body.check;
-    if (typeof selectedTasks === "string") {
-        tasks = tasks.filter(task => task.name !== selectedTasks);
-    } else if (Array.isArray(selectedTasks)) {
-        tasks = tasks.filter(task => !selectedTasks.includes(task.name));
-    }
+    const selectedTasks = req.body.checkedTasks;
+    tasks = tasks.filter(task => !selectedTasks.includes(task.name));
     res.redirect("/");
 });
 
@@ -91,3 +81,11 @@ const PORT = 3000;
 server.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
+
+// Define formatTime function
+function formatTime(time) {
+    const date = new Date(time);
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    return `${hours}:${minutes}`;
+}
